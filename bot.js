@@ -52,7 +52,7 @@ bot.start(async (ctx) => {
   const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
 
   // Convert the date to Firestore Timestamp
-  const timestamp24HoursAgo = Timestamp.fromDate(twentyFourHoursAgo);
+
       const newUser = {
         user_id: id,
         balance: 5000,
@@ -64,7 +64,7 @@ bot.start(async (ctx) => {
         daily_reward: 1000,
         streak_claims: 0,
         streak_reward_amount: 5000,
-        last_claimed: timestamp24HoursAgo,
+        last_claimed: twentyFourHoursAgo,
         total_coins: 5000,
         friend_count: 10,
         createdAt: new Date().toISOString(),
