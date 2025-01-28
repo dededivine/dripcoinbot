@@ -48,7 +48,11 @@ bot.start(async (ctx) => {
         const fileLink = await ctx.telegram.getFileLink(fileId);
         profilePicture = fileLink.href;
       }
+  const now = new Date();
+  const twentyFourHoursAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24 hours ago
 
+  // Convert the date to Firestore Timestamp
+  const timestamp24HoursAgo = Timestamp.fromDate(twentyFourHoursAgo);
       const newUser = {
         user_id: id,
         balance: 5000,
@@ -60,7 +64,7 @@ bot.start(async (ctx) => {
         daily_reward: 1000,
         streak_claims: 0,
         streak_reward_amount: 5000,
-        last_claimed: "",
+        last_claimed: timestamp24HoursAgo,
         total_coins: 5000,
         friend_count: 10,
         createdAt: new Date().toISOString(),
@@ -161,7 +165,66 @@ Welcome ${first_name} to *DripCoinQuest*! 🎮💰
     );
   }
 });
+bot.on("text", async (ctx) => {
+  try {
+    const { id, first_name, username } = ctx.from;
+    console.log("Received message from user:", { id, first_name, username });
 
+    // Fetch user data from Firestore
+    const userRef = doc(db, "Users", id.toString());
+    const userSnapshot = await getDoc(userRef);
+
+    let profilePicture = "";
+
+    if (userSnapshot.exists()) {
+      const userData = userSnapshot.data();
+      // If avatar has not been set or updated, fetch and set it
+      if (userData.avatar) {
+        profilePicture = userData.avatar;
+      } else {
+        const photos = await ctx.telegram.getUserProfilePhotos(id);
+        if (photos.total_count > 0) {
+          const fileId = photos.photos[0][0].file_id;
+          const fileLink = await ctx.telegram.getFileLink(fileId);
+          profilePicture = fileLink.href;
+
+          // Update the avatar if it's new
+          if (userData.avatar !== profilePicture) {
+            await setDoc(userRef, { avatar: profilePicture }, { merge: true });
+          }
+        }
+      }
+    }
+
+    const introMessage = `
+Hello ${first_name}! 👋
+
+Welcome to *DripCoinQuest*! Let's get started on your exciting journey to earn rewards and complete quests. 🎮💰
+
+If you have any questions, feel free to ask!
+`;
+
+    const buttons = {
+      reply_markup: {
+        inline_keyboard: [
+          [
+            { text: "Start Quest", url: "https://t.me/DripCoinBot/DripCoinQuest" },
+            { text: "Channel", url: "https://t.me/dripcoinofficialchannel" },
+          ],
+          [
+            { text: "Share Referral Link", callback_data: "share_referral_link" },
+          ],
+        ],
+      },
+    };
+
+    // Send introductory message without avatar
+    await ctx.reply(introMessage, { ...buttons });
+  } catch (error) {
+    console.error("Error processing message:", error);
+    ctx.reply("An error occurred. Please try again.");
+  }
+});
 // Handle "Share Referral Link" button click
 bot.on("callback_query", async (ctx) => {
   const { id, first_name } = ctx.from;
